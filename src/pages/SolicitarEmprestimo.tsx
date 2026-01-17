@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatPhone, LoanSimulation } from '@/lib/loanCalculator';
-import { DocumentCapture, CapturedDocument } from '@/components/DocumentCapture';
+import { RequiredDocumentCapture, RequiredDocument, initialDocuments } from '@/components/RequiredDocumentCapture';
 import { LocationCapture, LocationData } from '@/components/LocationCapture';
 import { 
   Loader2, 
@@ -95,7 +95,7 @@ export default function SolicitarEmprestimo() {
     { name: '', phone: '', relationship: '' },
   ]);
 
-  const [capturedDocuments, setCapturedDocuments] = useState<CapturedDocument[]>([]);
+  const [requiredDocuments, setRequiredDocuments] = useState<RequiredDocument[]>(initialDocuments);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -197,10 +197,11 @@ export default function SolicitarEmprestimo() {
         }
         return true;
       case 4:
-        if (capturedDocuments.length < 1) {
+        const missingDocs = requiredDocuments.filter(d => !d.captured);
+        if (missingDocs.length > 0) {
           toast({
-            title: 'Documentos necessários',
-            description: 'Envie pelo menos um documento',
+            title: 'Documentos obrigatórios',
+            description: `Faltam ${missingDocs.length} documento(s): ${missingDocs.map(d => d.label).join(', ')}`,
             variant: 'destructive',
           });
           return false;
@@ -312,11 +313,12 @@ export default function SolicitarEmprestimo() {
         if (refError) throw refError;
       }
 
-      // Upload documents
-      for (const doc of capturedDocuments) {
+      // Upload required documents
+      for (const doc of requiredDocuments) {
+        if (!doc.data) continue;
+        
         const blob = base64ToBlob(doc.data);
-        const fileExt = doc.name.split('.').pop() || 'jpg';
-        const fileName = `${user.id}/${loanRequest.id}/${Date.now()}_${doc.id}.${fileExt}`;
+        const fileName = `${user.id}/${loanRequest.id}/${doc.type}_${Date.now()}.jpg`;
 
         const { error: uploadError } = await supabase.storage
           .from('loan-documents')
@@ -324,13 +326,13 @@ export default function SolicitarEmprestimo() {
 
         if (uploadError) throw uploadError;
 
-        // Create document record
+        // Create document record with proper type
         const { error: docError } = await supabase
           .from('loan_documents')
           .insert({
             loan_request_id: loanRequest.id,
-            document_type: 'general',
-            file_name: doc.name,
+            document_type: doc.type,
+            file_name: doc.label,
             file_path: fileName,
           });
 
@@ -652,10 +654,9 @@ export default function SolicitarEmprestimo() {
 
             {/* Step 4: Documents */}
             {currentStep === 4 && (
-              <DocumentCapture
-                documents={capturedDocuments}
-                onDocumentsChange={setCapturedDocuments}
-                maxDocuments={10}
+              <RequiredDocumentCapture
+                documents={requiredDocuments}
+                onDocumentsChange={setRequiredDocuments}
               />
             )}
 
@@ -712,8 +713,11 @@ export default function SolicitarEmprestimo() {
                       <FileText className="h-4 w-4" /> Documentos
                     </h4>
                     <div className="space-y-1 text-sm">
-                      {capturedDocuments.map((doc) => (
-                        <p key={doc.id}>{doc.name}</p>
+                      {requiredDocuments.filter(d => d.captured).map((doc) => (
+                        <p key={doc.id} className="flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                          {doc.label}
+                        </p>
                       ))}
                     </div>
                   </Card>
