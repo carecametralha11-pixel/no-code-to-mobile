@@ -369,39 +369,41 @@ export default function SolicitarEmprestimo() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background app-container">
       <Header />
-      <div className="container py-8">
+      <div className="container px-4 py-4 md:py-8">
         {/* Simulation Summary */}
-        <Card className="mb-8 border-primary/20 bg-primary/5">
-          <CardContent className="p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+        <Card className="mb-6 md:mb-8 border-primary/20 bg-primary/5">
+          <CardContent className="p-4 md:p-6">
+            <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-center md:justify-between gap-3 md:gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Valor do Empréstimo</p>
-                <p className="text-2xl font-bold">{formatCurrency(simulation.amount)}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Valor do Empréstimo</p>
+                <p className="text-lg md:text-2xl font-bold">{formatCurrency(simulation.amount)}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Parcelas</p>
-                <p className="text-2xl font-bold">{simulation.termMonths}x de {formatCurrency(simulation.monthlyPayment)}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Parcelas</p>
+                <p className="text-lg md:text-2xl font-bold">{simulation.termMonths}x de {formatCurrency(simulation.monthlyPayment)}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total a Pagar</p>
-                <p className="text-2xl font-bold">{formatCurrency(simulation.totalAmount)}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Total a Pagar</p>
+                <p className="text-lg md:text-2xl font-bold">{formatCurrency(simulation.totalAmount)}</p>
               </div>
-              <Button variant="outline" onClick={() => navigate('/simulador')}>
-                Alterar Simulação
-              </Button>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => navigate('/simulador')} className="text-xs md:text-sm">
+                  Alterar Simulação
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 md:mb-8">
+          <div className="flex items-center justify-between px-1">
             {[1, 2, 3, 4, 5].map((step) => (
               <div key={step} className="flex items-center">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors ${
+                  className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center font-semibold text-sm md:text-base transition-colors ${
                     step < currentStep
                       ? 'bg-primary text-primary-foreground'
                       : step === currentStep
@@ -409,25 +411,17 @@ export default function SolicitarEmprestimo() {
                       : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {step < currentStep ? <CheckCircle2 className="h-5 w-5" /> : step}
+                  {step < currentStep ? <CheckCircle2 className="h-4 w-4 md:h-5 md:w-5" /> : step}
                 </div>
-                {step < 5 && (
-                  <div
-                    className={`hidden sm:block w-full h-1 mx-2 transition-colors ${
-                      step < currentStep ? 'bg-primary' : 'bg-muted'
-                    }`}
-                    style={{ width: '60px' }}
-                  />
-                )}
               </div>
             ))}
           </div>
-          <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-            <span>Dados</span>
-            <span>Banco</span>
-            <span>Referências</span>
-            <span>Documentos</span>
-            <span>Confirmar</span>
+          <div className="flex justify-between mt-2 px-1">
+            <span className="text-[10px] md:text-xs text-muted-foreground text-center w-9 md:w-10">Dados</span>
+            <span className="text-[10px] md:text-xs text-muted-foreground text-center w-9 md:w-10">Banco</span>
+            <span className="text-[10px] md:text-xs text-muted-foreground text-center w-9 md:w-10">Refs</span>
+            <span className="text-[10px] md:text-xs text-muted-foreground text-center w-9 md:w-10">Docs</span>
+            <span className="text-[10px] md:text-xs text-muted-foreground text-center w-9 md:w-10">Fim</span>
           </div>
         </div>
 
