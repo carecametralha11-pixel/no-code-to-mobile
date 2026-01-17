@@ -73,42 +73,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, fullName: string, cpf: string, phone: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-      },
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      });
 
-    if (error) return { error: error as Error };
+      if (error) return { error: error as Error };
 
-    // Create profile after successful signup
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: data.user.id,
-          full_name: fullName,
-          cpf,
-          phone,
-          email,
-        });
+      // Create profile after successful signup
+      // Note: user_roles is automatically created by database trigger
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: data.user.id,
+            full_name: fullName,
+            cpf,
+            phone,
+            email,
+          });
 
-      if (profileError) return { error: profileError as Error };
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          return { error: profileError as Error };
+        }
+      }
 
-      // Assign default client role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          role: 'client',
-        });
-
-      if (roleError) return { error: roleError as Error };
+      return { error: null };
+    } catch (err) {
+      console.error('Signup error:', err);
+      return { error: err as Error };
     }
-
-    return { error: null };
   };
 
   const signOut = async () => {
