@@ -30,7 +30,16 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
 
       if (isNativePlatform()) {
         // Use Capacitor for native platforms
-        coords = await getCurrentPosition();
+        try {
+          coords = await getCurrentPosition();
+        } catch (nativeError: any) {
+          console.error('Native geolocation error:', nativeError);
+          // Show friendly error without AndroidManifest details
+          const friendlyMessage = nativeError.message?.includes('permission') || nativeError.message?.includes('Missing')
+            ? 'Permissão de localização necessária. Verifique as configurações do app.'
+            : 'Não foi possível obter a localização. Tente novamente.';
+          throw new Error(friendlyMessage);
+        }
       } else {
         // Use browser geolocation API for web
         const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -40,7 +49,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
           }
           navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: true,
-            timeout: 10000,
+            timeout: 15000,
             maximumAge: 0,
           });
         });
@@ -82,15 +91,15 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
 
       return locationData;
     } catch (err: any) {
-      let errorMessage = 'Erro ao obter localização';
+      let errorMessage = 'Não foi possível obter a localização';
       
       if (err.code === 1) {
-        errorMessage = 'Permissão de localização negada';
+        errorMessage = 'Permissão de localização negada. Habilite nas configurações.';
       } else if (err.code === 2) {
-        errorMessage = 'Localização indisponível';
+        errorMessage = 'Localização indisponível no momento';
       } else if (err.code === 3) {
-        errorMessage = 'Tempo esgotado ao obter localização';
-      } else if (err.message) {
+        errorMessage = 'Tempo esgotado. Tente novamente.';
+      } else if (err.message && !err.message.includes('AndroidManifest')) {
         errorMessage = err.message;
       }
 
@@ -98,7 +107,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
       options.onError?.(errorMessage);
 
       toast({
-        title: 'Erro de localização',
+        title: 'Localização',
         description: errorMessage,
         variant: 'destructive',
       });

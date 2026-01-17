@@ -35,17 +35,32 @@ export async function pickFromGallery() {
 // Geolocation utilities
 export async function getCurrentPosition() {
   try {
+    // First check permissions
+    const permStatus = await Geolocation.checkPermissions();
+    
+    if (permStatus.location === 'denied') {
+      // Request permission
+      const requestResult = await Geolocation.requestPermissions();
+      if (requestResult.location === 'denied') {
+        throw new Error('Permissão de localização negada. Habilite nas configurações do app.');
+      }
+    }
+
     const position = await Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
-      timeout: 10000,
+      timeout: 15000,
     });
     return {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
       accuracy: position.coords.accuracy,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting location:', error);
+    // Provide user-friendly error messages
+    if (error.message?.includes('Missing permission')) {
+      throw new Error('Permissão de localização necessária. Habilite nas configurações.');
+    }
     throw error;
   }
 }

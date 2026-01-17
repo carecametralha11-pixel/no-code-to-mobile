@@ -81,15 +81,15 @@ export function LocationCapture({
             </div>
           ) : error ? (
             <div className="space-y-2">
-              <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+              <p className="text-xs text-destructive break-words max-w-full">{error}</p>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleRetry}
-                className="h-7 text-xs"
+                className="h-8 text-xs px-3"
               >
-                <RefreshCw className="h-3 w-3 mr-1" />
+                <RefreshCw className="h-3 w-3 mr-1.5 shrink-0" />
                 Tentar novamente
               </Button>
             </div>
