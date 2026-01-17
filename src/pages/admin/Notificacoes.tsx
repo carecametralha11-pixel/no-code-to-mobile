@@ -7,14 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   Loader2, Bell, Send, ArrowLeft, Users, User, 
-  CheckCircle2, XCircle, Smartphone, Mail, Plus
+  CheckCircle2, XCircle, Smartphone, Search
 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,25 +29,23 @@ interface PushToken {
   user_email?: string;
 }
 
-interface NotificationHistory {
-  id: string;
-  title: string;
-  message: string;
-  target: string;
-  sent_at: string;
-  success_count: number;
-  fail_count: number;
+interface UserWithToken {
+  user_id: string;
+  full_name: string;
+  email: string;
+  hasToken: boolean;
 }
 
 export default function AdminNotificacoes() {
   const [tokens, setTokens] = useState<PushToken[]>([]);
+  const [allUsers, setAllUsers] = useState<UserWithToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [target, setTarget] = useState('all');
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [users, setUsers] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
+  const [userSearch, setUserSearch] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -57,6 +54,12 @@ export default function AdminNotificacoes() {
 
   const loadData = async () => {
     try {
+      // Load all profiles first
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email')
+        .order('full_name');
+
       // Load push tokens
       const { data: tokensData, error: tokensError } = await supabase
         .from('push_tokens')
@@ -65,15 +68,21 @@ export default function AdminNotificacoes() {
 
       if (tokensError) throw tokensError;
 
+      const tokenUserIds = new Set(tokensData?.map(t => t.user_id) || []);
+
+      // Create users list with token status
+      const usersWithTokenStatus: UserWithToken[] = (allProfiles || []).map(p => ({
+        user_id: p.user_id,
+        full_name: p.full_name,
+        email: p.email,
+        hasToken: tokenUserIds.has(p.user_id),
+      }));
+
+      setAllUsers(usersWithTokenStatus);
+
       // Load user profiles for tokens
       if (tokensData && tokensData.length > 0) {
-        const userIds = [...new Set(tokensData.map(t => t.user_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, full_name, email')
-          .in('user_id', userIds);
-
-        const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+        const profileMap = new Map(allProfiles?.map(p => [p.user_id, p]) || []);
         
         const tokensWithUsers = tokensData.map(token => ({
           ...token,
@@ -82,14 +91,9 @@ export default function AdminNotificacoes() {
         }));
 
         setTokens(tokensWithUsers);
+      } else {
+        setTokens([]);
       }
-
-      // Load all users with push tokens for targeting
-      const { data: allProfiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, email');
-      
-      setUsers(allProfiles || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -111,46 +115,54 @@ export default function AdminNotificacoes() {
       return;
     }
 
+    if (target === 'specific' && !selectedUserId) {
+      toast({
+        title: 'Selecione um usuário',
+        description: 'Escolha o usuário que receberá a notificação',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSending(true);
     try {
-      // Get tokens to send to
-      let targetTokens = tokens;
-      
-      if (target === 'specific' && selectedUserId) {
-        targetTokens = tokens.filter(t => t.user_id === selectedUserId);
+      // Build payload based on target
+      const payload: Record<string, any> = {
+        title,
+        message,
+      };
+
+      if (target === 'all') {
+        payload.send_to_all = true;
+      } else if (target === 'specific' && selectedUserId) {
+        payload.user_id = selectedUserId;
       }
 
-      if (targetTokens.length === 0) {
-        toast({
-          title: 'Nenhum dispositivo encontrado',
-          description: 'Não há dispositivos registrados para enviar notificações',
-          variant: 'destructive',
-        });
-        setSending(false);
-        return;
-      }
-
-      // Call edge function to send notifications
+      // Call edge function
       const { data, error } = await supabase.functions.invoke('send-notification', {
-        body: {
-          title,
-          message,
-          tokens: targetTokens.map(t => t.token),
-        },
+        body: payload,
       });
 
       if (error) throw error;
 
-      toast({
-        title: 'Notificação enviada!',
-        description: `Enviada para ${targetTokens.length} dispositivo(s)`,
-      });
+      if (data?.success) {
+        toast({
+          title: 'Notificação enviada!',
+          description: `Enviada para ${data.sent || 0} dispositivo(s)`,
+        });
 
-      // Clear form
-      setTitle('');
-      setMessage('');
-      setTarget('all');
-      setSelectedUserId('');
+        // Clear form
+        setTitle('');
+        setMessage('');
+        setTarget('all');
+        setSelectedUserId('');
+      } else {
+        toast({
+          title: 'Aviso',
+          description: data?.message || 'Nenhum dispositivo encontrado',
+          variant: 'destructive',
+        });
+      }
     } catch (error: any) {
       console.error('Error sending notification:', error);
       toast({
@@ -163,6 +175,14 @@ export default function AdminNotificacoes() {
     }
   };
 
+  const filteredUsers = allUsers.filter(user => {
+    if (!userSearch) return true;
+    const searchLower = userSearch.toLowerCase();
+    return (
+      user.full_name.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower)
+    );
+  });
   const removeToken = async (tokenId: string) => {
     try {
       const { error } = await supabase
@@ -254,21 +274,44 @@ export default function AdminNotificacoes() {
 
                 {target === 'specific' && (
                   <div className="space-y-2">
-                    <Label htmlFor="user">Selecionar Usuário</Label>
+                    <Label htmlFor="user">Buscar Usuário</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por nome ou email..."
+                        value={userSearch}
+                        onChange={(e) => setUserSearch(e.target.value)}
+                        className="pl-10 mb-2"
+                      />
+                    </div>
                     <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                       <SelectTrigger>
                         <SelectValue placeholder="Escolha um usuário" />
                       </SelectTrigger>
                       <SelectContent>
-                        {users
-                          .filter(u => tokens.some(t => t.user_id === u.user_id))
-                          .map(user => (
-                            <SelectItem key={user.user_id} value={user.user_id}>
-                              {user.full_name} ({user.email})
-                            </SelectItem>
-                          ))}
+                        {filteredUsers.map(user => (
+                          <SelectItem key={user.user_id} value={user.user_id}>
+                            <div className="flex items-center gap-2">
+                              <span>{user.full_name}</span>
+                              {user.hasToken ? (
+                                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                                  App instalado
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                                  Sem app
+                                </Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {selectedUserId && !allUsers.find(u => u.user_id === selectedUserId)?.hasToken && (
+                      <p className="text-xs text-amber-600">
+                        ⚠️ Este usuário não tem o app instalado e não receberá notificações push
+                      </p>
+                    )}
                   </div>
                 )}
 

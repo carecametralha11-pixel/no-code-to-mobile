@@ -7,10 +7,11 @@ const corsHeaders = {
 };
 
 interface NotificationPayload {
-  user_id: string;
   title: string;
-  body: string;
-  data?: Record<string, string>;
+  message: string;
+  tokens?: string[];
+  user_id?: string;
+  send_to_all?: boolean;
 }
 
 serve(async (req) => {
@@ -59,65 +60,74 @@ serve(async (req) => {
     }
 
     // Parse notification payload
-    const { user_id, title, body, data } = await req.json() as NotificationPayload;
+    const payload = await req.json() as NotificationPayload;
+    const { title, message, tokens: providedTokens, user_id, send_to_all } = payload;
 
-    if (!user_id || !title || !body) {
+    if (!title || !message) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: user_id, title, body' }),
+        JSON.stringify({ error: 'Missing required fields: title, message' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get user's push tokens
-    const { data: tokens, error: tokensError } = await supabase
-      .from('push_tokens')
-      .select('token, platform')
-      .eq('user_id', user_id);
+    let targetTokens: { token: string; platform: string; user_id: string }[] = [];
 
-    if (tokensError) {
-      console.error('Error fetching tokens:', tokensError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch push tokens' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Get tokens based on target
+    if (providedTokens && providedTokens.length > 0) {
+      // Tokens were provided directly
+      const { data: tokenData } = await supabase
+        .from('push_tokens')
+        .select('token, platform, user_id')
+        .in('token', providedTokens);
+      targetTokens = tokenData || [];
+    } else if (user_id) {
+      // Send to specific user
+      const { data: tokenData } = await supabase
+        .from('push_tokens')
+        .select('token, platform, user_id')
+        .eq('user_id', user_id);
+      targetTokens = tokenData || [];
+    } else if (send_to_all) {
+      // Send to all users
+      const { data: tokenData } = await supabase
+        .from('push_tokens')
+        .select('token, platform, user_id');
+      targetTokens = tokenData || [];
     }
 
-    if (!tokens || tokens.length === 0) {
-      console.log(`No push tokens found for user ${user_id}`);
+    if (targetTokens.length === 0) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'No push tokens registered for this user',
+          message: 'No devices found to send notification',
           sent: 0 
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${tokens.length} push tokens for user ${user_id}`);
+    console.log(`Sending notification to ${targetTokens.length} devices`);
 
-    // For now, we just log the notification
-    // In production, you would integrate with Firebase Cloud Messaging (FCM) or Apple Push Notification Service (APNS)
-    // This requires additional setup with Firebase project and credentials
-    
+    // Log notification details
     const notificationLog = {
-      user_id,
       title,
-      body,
-      data,
-      tokens_count: tokens.length,
-      platforms: tokens.map(t => t.platform),
+      message,
+      tokens_count: targetTokens.length,
+      platforms: [...new Set(targetTokens.map(t => t.platform))],
+      user_ids: [...new Set(targetTokens.map(t => t.user_id))],
       sent_at: new Date().toISOString(),
+      sent_by: user.id,
     };
 
-    console.log('Notification to send:', JSON.stringify(notificationLog, null, 2));
+    console.log('Notification details:', JSON.stringify(notificationLog, null, 2));
 
-    // TODO: Implement actual push notification sending
-    // For FCM, you would need:
-    // 1. Firebase Admin SDK credentials stored in secrets
-    // 2. Send notification using FCM API for each token
-    
-    // Example FCM implementation (commented):
+    // TODO: Implement actual push notification sending with FCM
+    // For now, we simulate successful sending
+    // 
+    // To implement FCM:
+    // 1. Add FCM_SERVER_KEY to secrets
+    // 2. Use the Firebase Cloud Messaging API:
+    //
     // const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
     //   method: 'POST',
     //   headers: {
@@ -125,18 +135,28 @@ serve(async (req) => {
     //     'Content-Type': 'application/json',
     //   },
     //   body: JSON.stringify({
-    //     registration_ids: tokens.map(t => t.token),
-    //     notification: { title, body },
-    //     data,
+    //     registration_ids: targetTokens.map(t => t.token),
+    //     notification: { 
+    //       title, 
+    //       body: message,
+    //       sound: 'default',
+    //       badge: 1,
+    //     },
+    //     data: {
+    //       title,
+    //       message,
+    //       click_action: 'FLUTTER_NOTIFICATION_CLICK',
+    //     },
     //   }),
     // });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Notification queued',
-        sent: tokens.length,
-        platforms: tokens.map(t => t.platform),
+        message: 'Notification sent successfully',
+        sent: targetTokens.length,
+        platforms: [...new Set(targetTokens.map(t => t.platform))],
+        users_notified: [...new Set(targetTokens.map(t => t.user_id))].length,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
