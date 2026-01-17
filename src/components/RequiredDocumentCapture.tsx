@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useCamera } from '@/hooks/useCamera';
-import { Camera, Upload, Loader2, X, CheckCircle2, AlertCircle, Image, CreditCard } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Camera, Upload, Loader2, X, CheckCircle2, AlertCircle, Image, CreditCard, RefreshCw } from 'lucide-react';
 import { isNativePlatform } from '@/lib/nativeFeatures';
 
 interface RequiredDocument {
@@ -62,28 +62,24 @@ export function RequiredDocumentCapture({
   documents, 
   onDocumentsChange 
 }: RequiredDocumentCaptureProps) {
-  const [activeDocId, setActiveDocId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loadingDoc, setLoadingDoc] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const { toast } = useToast();
   const isNative = isNativePlatform();
 
-  const { capturePhoto, selectFromGallery, loading: cameraLoading } = useCamera({
-    onCapture: (imageData) => {
-      if (activeDocId) {
-        updateDocument(activeDocId, imageData);
-        setActiveDocId(null);
-      }
-    },
-  });
-
   const updateDocument = useCallback((docId: string, data: string) => {
+    console.log('Updating document:', docId, 'data length:', data?.length);
     const updatedDocs = documents.map(doc => 
       doc.id === docId 
         ? { ...doc, data, captured: true }
         : doc
     );
     onDocumentsChange(updatedDocs);
-  }, [documents, onDocumentsChange]);
+    toast({
+      title: 'Foto capturada!',
+      description: 'Documento adicionado com sucesso.',
+    });
+  }, [documents, onDocumentsChange, toast]);
 
   const removeDocument = useCallback((docId: string) => {
     const updatedDocs = documents.map(doc => 
@@ -95,39 +91,154 @@ export function RequiredDocumentCapture({
   }, [documents, onDocumentsChange]);
 
   const handleCameraCapture = async (docId: string) => {
-    setActiveDocId(docId);
-    await capturePhoto();
+    if (!isNative) {
+      toast({
+        title: 'Câmera não disponível',
+        description: 'Use a opção "Enviar Arquivo" ou abra no app nativo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoadingDoc(docId);
+    
+    try {
+      const { Camera: CameraPlugin, CameraResultType, CameraSource } = await import('@capacitor/camera');
+      
+      // Request permission first
+      const permStatus = await CameraPlugin.checkPermissions();
+      if (permStatus.camera !== 'granted') {
+        const permRequest = await CameraPlugin.requestPermissions();
+        if (permRequest.camera !== 'granted') {
+          toast({
+            title: 'Permissão negada',
+            description: 'Ative a câmera nas configurações do app.',
+            variant: 'destructive',
+          });
+          setLoadingDoc(null);
+          return;
+        }
+      }
+
+      const image = await CameraPlugin.getPhoto({
+        quality: 85,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+        correctOrientation: true,
+        width: 1200,
+        height: 1600,
+      });
+
+      if (image.dataUrl) {
+        updateDocument(docId, image.dataUrl);
+      } else {
+        throw new Error('Nenhuma imagem capturada');
+      }
+    } catch (err: any) {
+      console.error('Camera error:', err);
+      if (!err.message?.includes('cancelled') && !err.message?.includes('User cancelled')) {
+        toast({
+          title: 'Erro na câmera',
+          description: err.message || 'Não foi possível capturar a foto. Tente novamente.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoadingDoc(null);
+    }
   };
 
   const handleGallerySelect = async (docId: string) => {
-    setActiveDocId(docId);
-    await selectFromGallery();
+    if (!isNative) {
+      // On web, use file input
+      fileInputRefs.current[docId]?.click();
+      return;
+    }
+
+    setLoadingDoc(docId);
+    
+    try {
+      const { Camera: CameraPlugin, CameraResultType, CameraSource } = await import('@capacitor/camera');
+      
+      const image = await CameraPlugin.getPhoto({
+        quality: 85,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Photos,
+        correctOrientation: true,
+        width: 1200,
+        height: 1600,
+      });
+
+      if (image.dataUrl) {
+        updateDocument(docId, image.dataUrl);
+      } else {
+        throw new Error('Nenhuma imagem selecionada');
+      }
+    } catch (err: any) {
+      console.error('Gallery error:', err);
+      if (!err.message?.includes('cancelled') && !err.message?.includes('User cancelled')) {
+        toast({
+          title: 'Erro na galeria',
+          description: err.message || 'Não foi possível selecionar a foto.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoadingDoc(null);
+    }
   };
 
   const handleFileUpload = (docId: string) => {
-    setActiveDocId(docId);
-    fileInputRef.current?.click();
+    fileInputRefs.current[docId]?.click();
   };
 
-  const onFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const onFileChange = useCallback((docId: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !activeDocId) return;
+    if (!file) return;
 
-    setLoading(true);
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Arquivo inválido',
+        description: 'Por favor, selecione uma imagem.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'Arquivo muito grande',
+        description: 'A imagem deve ter no máximo 10MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoadingDoc(docId);
+    
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      updateDocument(activeDocId, result);
-      setLoading(false);
-      setActiveDocId(null);
+      updateDocument(docId, result);
+      setLoadingDoc(null);
+    };
+    reader.onerror = () => {
+      toast({
+        title: 'Erro ao ler arquivo',
+        description: 'Não foi possível processar a imagem.',
+        variant: 'destructive',
+      });
+      setLoadingDoc(null);
     };
     reader.readAsDataURL(file);
 
     // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }, [activeDocId, updateDocument]);
+    event.target.value = '';
+  }, [updateDocument, toast]);
 
   const completedCount = documents.filter(d => d.captured).length;
   const totalCount = documents.length;
@@ -151,34 +262,41 @@ export function RequiredDocumentCapture({
               {/* Preview or Icon */}
               <div className="shrink-0">
                 {doc.captured && doc.data ? (
-                  <div className="relative w-20 h-20 rounded-lg overflow-hidden">
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-green-500/50">
                     <img 
                       src={doc.data} 
                       alt={doc.label} 
                       className="w-full h-full object-cover"
                     />
-                    <button
-                      type="button"
-                      onClick={() => removeDocument(doc.id)}
-                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => removeDocument(doc.id)}
+                        className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <CheckCircle2 className="h-3 w-3 text-white" />
+                    </div>
                   </div>
                 ) : (
-                  <div className={`w-20 h-20 rounded-lg flex items-center justify-center ${
+                  <div className={`w-20 h-20 rounded-lg flex items-center justify-center border-2 border-dashed ${
                     doc.type === 'selfie_documento' 
-                      ? 'bg-purple-100 dark:bg-purple-900/30' 
+                      ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700' 
                       : doc.type === 'cartao_frente' || doc.type === 'cartao_verso'
-                      ? 'bg-green-100 dark:bg-green-900/30'
-                      : 'bg-blue-100 dark:bg-blue-900/30'
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700'
+                      : 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
                   }`}>
-                    {doc.type === 'selfie_documento' ? (
-                      <Camera className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                    {loadingDoc === doc.id ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    ) : doc.type === 'selfie_documento' ? (
+                      <Camera className="h-8 w-8 text-purple-500" />
                     ) : doc.type === 'cartao_frente' || doc.type === 'cartao_verso' ? (
-                      <CreditCard className="h-8 w-8 text-green-600 dark:text-green-400" />
+                      <CreditCard className="h-8 w-8 text-green-500" />
                     ) : (
-                      <Image className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                      <Image className="h-8 w-8 text-blue-500" />
                     )}
                   </div>
                 )}
@@ -196,19 +314,19 @@ export function RequiredDocumentCapture({
                   </div>
                 </div>
 
-                {!doc.captured && (
+                {!doc.captured ? (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {isNative && (
                       <>
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={() => handleCameraCapture(doc.id)}
-                          disabled={cameraLoading && activeDocId === doc.id}
+                          disabled={loadingDoc === doc.id}
                           className="text-xs"
                         >
-                          {cameraLoading && activeDocId === doc.id ? (
+                          {loadingDoc === doc.id ? (
                             <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                           ) : (
                             <Camera className="h-3 w-3 mr-1" />
@@ -220,7 +338,7 @@ export function RequiredDocumentCapture({
                           variant="outline"
                           size="sm"
                           onClick={() => handleGallerySelect(doc.id)}
-                          disabled={cameraLoading && activeDocId === doc.id}
+                          disabled={loadingDoc === doc.id}
                           className="text-xs"
                         >
                           <Image className="h-3 w-3 mr-1" />
@@ -230,13 +348,13 @@ export function RequiredDocumentCapture({
                     )}
                     <Button
                       type="button"
-                      variant={isNative ? "ghost" : "outline"}
+                      variant={isNative ? "ghost" : "default"}
                       size="sm"
                       onClick={() => handleFileUpload(doc.id)}
-                      disabled={loading && activeDocId === doc.id}
+                      disabled={loadingDoc === doc.id}
                       className="text-xs"
                     >
-                      {loading && activeDocId === doc.id ? (
+                      {loadingDoc === doc.id ? (
                         <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                       ) : (
                         <Upload className="h-3 w-3 mr-1" />
@@ -244,32 +362,46 @@ export function RequiredDocumentCapture({
                       {isNative ? 'Arquivo' : 'Enviar Arquivo'}
                     </Button>
                   </div>
-                )}
-
-                {doc.captured && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeDocument(doc.id)}
-                    className="text-xs text-muted-foreground mt-2"
-                  >
-                    Trocar foto
-                  </Button>
+                ) : (
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => isNative ? handleCameraCapture(doc.id) : handleFileUpload(doc.id)}
+                      disabled={loadingDoc === doc.id}
+                      className="text-xs"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Trocar foto
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeDocument(doc.id)}
+                      className="text-xs text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Remover
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
+
+            {/* Hidden file input for each document */}
+            <input
+              type="file"
+              ref={(el) => { fileInputRefs.current[doc.id] = el; }}
+              onChange={(e) => onFileChange(doc.id, e)}
+              accept="image/*"
+              capture={isNative ? "environment" : undefined}
+              className="hidden"
+            />
           </Card>
         ))}
       </div>
-
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={onFileChange}
-        accept="image/*"
-        className="hidden"
-      />
 
       {/* Tips */}
       <Card className="p-4 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">

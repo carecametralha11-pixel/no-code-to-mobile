@@ -15,27 +15,51 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
   const { toast } = useToast();
   const isRegistered = useRef(false);
   const listenersSetup = useRef(false);
+  const pendingUserId = useRef<string | null>(null);
 
   const saveTokenToDatabase = useCallback(async (pushToken: string, userId: string) => {
     try {
       const platform = (window as any).Capacitor?.getPlatform() || 'web';
       
-      const { error } = await supabase
+      console.log('Saving push token to database:', { userId, platform, tokenLength: pushToken.length });
+      
+      // First, delete any existing token for this user (to avoid conflicts)
+      await supabase
         .from('push_tokens')
-        .upsert({
+        .delete()
+        .eq('user_id', userId);
+
+      // Then insert the new token
+      const { data, error } = await supabase
+        .from('push_tokens')
+        .insert({
           user_id: userId,
           token: pushToken,
           platform,
-        }, {
-          onConflict: 'user_id,token'
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error('Error saving push token:', error);
-        return false;
+        // Try upsert as fallback
+        const { error: upsertError } = await supabase
+          .from('push_tokens')
+          .upsert({
+            user_id: userId,
+            token: pushToken,
+            platform,
+          }, {
+            onConflict: 'user_id,token'
+          });
+        
+        if (upsertError) {
+          console.error('Upsert also failed:', upsertError);
+          return false;
+        }
       }
       
-      console.log('Push token saved successfully');
+      console.log('Push token saved successfully:', data?.id);
       return true;
     } catch (err) {
       console.error('Error saving push token:', err);
@@ -44,9 +68,20 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
   }, []);
 
   const registerPushNotifications = useCallback(async (userId?: string) => {
+    const targetUserId = userId || options.userId;
+    
+    // Store userId for later use in registration callback
+    if (targetUserId) {
+      pendingUserId.current = targetUserId;
+    }
+
     // Prevent multiple registrations
     if (isRegistered.current) {
-      console.log('Push notifications already registered');
+      console.log('Push notifications already registered, checking if token needs to be saved');
+      // If we have a token and userId, make sure it's saved
+      if (token && targetUserId) {
+        await saveTokenToDatabase(token, targetUserId);
+      }
       return true;
     }
 
@@ -70,10 +105,13 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
     try {
       // Check current permission status
       const permStatus = await PushNotifications.checkPermissions();
+      console.log('Current push permission status:', permStatus);
       
       if (permStatus.receive === 'prompt') {
         // Request permission
         const permission = await PushNotifications.requestPermissions();
+        console.log('Push permission request result:', permission);
+        
         if (permission.receive !== 'granted') {
           toast({
             title: 'Notificações desativadas',
@@ -100,19 +138,23 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
         listenersSetup.current = true;
         
         await PushNotifications.addListener('registration', async (tokenData: { value: string }) => {
-          console.log('Push registration token:', tokenData.value);
+          console.log('Push registration token received:', tokenData.value.substring(0, 20) + '...');
           setToken(tokenData.value);
           
-          // Save to database if userId provided
-          const targetUserId = userId || options.userId;
-          if (targetUserId) {
-            await saveTokenToDatabase(tokenData.value, targetUserId);
+          // Save to database using the pending userId
+          const userIdToSave = pendingUserId.current;
+          if (userIdToSave) {
+            console.log('Saving token for user:', userIdToSave);
+            const saved = await saveTokenToDatabase(tokenData.value, userIdToSave);
+            if (saved) {
+              toast({
+                title: 'Notificações ativadas',
+                description: 'Você receberá atualizações sobre seu empréstimo',
+              });
+            }
+          } else {
+            console.warn('No userId available for saving push token');
           }
-
-          toast({
-            title: 'Notificações ativadas',
-            description: 'Você receberá atualizações sobre seu empréstimo',
-          });
         });
 
         await PushNotifications.addListener('registrationError', (error: any) => {
@@ -138,6 +180,7 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       }
 
       // Register with Apple/Google
+      console.log('Registering with Apple/Google push service...');
       await PushNotifications.register();
       isRegistered.current = true;
 
@@ -153,29 +196,28 @@ export function usePushNotifications(options: UsePushNotificationsOptions = {}) 
       setLoading(false);
       return false;
     }
-  }, [options.userId, saveTokenToDatabase, toast]);
+  }, [options.userId, saveTokenToDatabase, toast, token]);
 
   const removeToken = useCallback(async (userId: string) => {
-    if (!token) return;
-
     try {
       await supabase
         .from('push_tokens')
         .delete()
-        .eq('user_id', userId)
-        .eq('token', token);
+        .eq('user_id', userId);
 
       setToken(null);
       isRegistered.current = false;
+      pendingUserId.current = null;
       console.log('Push token removed');
     } catch (err) {
       console.error('Error removing push token:', err);
     }
-  }, [token]);
+  }, []);
 
   // Auto-register on mount if requested - with proper dependency management
   useEffect(() => {
     if (options.autoRegister && options.userId && isNativePlatform() && !isRegistered.current) {
+      console.log('Auto-registering push notifications for user:', options.userId);
       registerPushNotifications(options.userId);
     }
   }, [options.autoRegister, options.userId]);
