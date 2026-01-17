@@ -15,6 +15,9 @@ import MeusEmprestimos from "./pages/MeusEmprestimos";
 import Perfil from "./pages/Perfil";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminSolicitacoes from "./pages/admin/Solicitacoes";
+import AdminUsuarios from "./pages/admin/Usuarios";
+import AdminNotificacoes from "./pages/admin/Notificacoes";
+import AdminConfiguracoes from "./pages/admin/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +79,21 @@ const App = () => (
             <Route path="/admin/solicitacoes" element={
               <ProtectedRoute requireAdmin>
                 <AdminSolicitacoes />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/usuarios" element={
+              <ProtectedRoute requireAdmin>
+                <AdminUsuarios />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/notificacoes" element={
+              <ProtectedRoute requireAdmin>
+                <AdminNotificacoes />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/configuracoes" element={
+              <ProtectedRoute requireAdmin>
+                <AdminConfiguracoes />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

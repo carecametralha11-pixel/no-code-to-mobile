@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/loanCalculator';
 import { 
   Loader2, DollarSign, Users, FileText, TrendingUp, Clock, CheckCircle2, XCircle, 
-  AlertTriangle, ArrowRight, BarChart3 
+  AlertTriangle, ArrowRight, BarChart3, Bell, Settings, Smartphone
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
@@ -111,72 +111,80 @@ export default function AdminDashboard() {
   ].filter(item => item.value > 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background app-container">
       <Header />
-      <div className="container py-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+      <div className="container px-4 py-4 md:py-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-            <p className="text-muted-foreground">Visão geral do sistema de empréstimos</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Painel Administrativo</h1>
+            <p className="text-sm text-muted-foreground">Visão geral do sistema de empréstimos</p>
           </div>
-          <Button asChild>
-            <Link to="/admin/solicitacoes">
-              <FileText className="h-4 w-4 mr-2" />
-              Ver Todas Solicitações
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/configuracoes">
+                <Settings className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Configurações</span>
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/admin/solicitacoes">
+                <FileText className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Ver Solicitações</span>
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Emprestado</p>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(stats?.totalDisbursed || 0)}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Total Emprestado</p>
+                  <p className="text-lg md:text-2xl font-bold text-green-600">{formatCurrency(stats?.totalDisbursed || 0)}</p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-green-600" />
+                <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Clientes</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats?.totalClients}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Total Clientes</p>
+                  <p className="text-lg md:text-2xl font-bold text-blue-600">{stats?.totalClients}</p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600" />
+                <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <Users className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Aguardando Análise</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats?.pendingLoans}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Aguardando</p>
+                  <p className="text-lg md:text-2xl font-bold text-yellow-600">{stats?.pendingLoans}</p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-yellow-600" />
+                <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                  <Clock className="h-5 w-5 md:h-6 md:w-6 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Parcelas Atrasadas</p>
-                  <p className="text-2xl font-bold text-red-600">{stats?.overduePayments}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Atrasadas</p>
+                  <p className="text-lg md:text-2xl font-bold text-red-600">{stats?.overduePayments}</p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-red-600" />
                 </div>
               </div>
             </CardContent>
@@ -271,37 +279,51 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <Card className="mt-8">
+        <Card className="mt-6 md:mt-8">
           <CardHeader>
             <CardTitle>Ações Rápidas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" asChild>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+              <Button variant="outline" className="h-auto py-3 md:py-4 flex flex-col gap-1 md:gap-2" asChild>
                 <Link to="/admin/solicitacoes">
-                  <Clock className="h-6 w-6" />
-                  <span>Analisar Pendentes</span>
-                  <span className="text-xs text-muted-foreground">{stats?.pendingLoans} aguardando</span>
+                  <Clock className="h-5 w-5 md:h-6 md:w-6" />
+                  <span className="text-xs md:text-sm">Pendentes</span>
+                  <span className="text-[10px] md:text-xs text-muted-foreground">{stats?.pendingLoans} aguardando</span>
                 </Link>
               </Button>
-              <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" asChild>
+              <Button variant="outline" className="h-auto py-3 md:py-4 flex flex-col gap-1 md:gap-2" asChild>
                 <Link to="/admin/solicitacoes?filter=approved">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  <span>Liberar Aprovados</span>
-                  <span className="text-xs text-muted-foreground">{stats?.approvedLoans} prontos</span>
+                  <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
+                  <span className="text-xs md:text-sm">Aprovados</span>
+                  <span className="text-[10px] md:text-xs text-muted-foreground">{stats?.approvedLoans} prontos</span>
                 </Link>
               </Button>
-              <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" asChild>
-                <Link to="/admin/solicitacoes?filter=disbursed">
-                  <DollarSign className="h-6 w-6 text-purple-600" />
-                  <span>Ver Ativos</span>
-                  <span className="text-xs text-muted-foreground">{stats?.disbursedLoans} empréstimos</span>
+              <Button variant="outline" className="h-auto py-3 md:py-4 flex flex-col gap-1 md:gap-2" asChild>
+                <Link to="/admin/usuarios">
+                  <Users className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
+                  <span className="text-xs md:text-sm">Usuários</span>
+                  <span className="text-[10px] md:text-xs text-muted-foreground">{stats?.totalClients} cadastros</span>
                 </Link>
               </Button>
-              <Button variant="outline" className="h-auto py-4 flex flex-col gap-2">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-                <span>Cobrar Atrasos</span>
-                <span className="text-xs text-muted-foreground">{stats?.overduePayments} parcelas</span>
+              <Button variant="outline" className="h-auto py-3 md:py-4 flex flex-col gap-1 md:gap-2" asChild>
+                <Link to="/admin/notificacoes">
+                  <Bell className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
+                  <span className="text-xs md:text-sm">Notificações</span>
+                  <span className="text-[10px] md:text-xs text-muted-foreground">Enviar push</span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-auto py-3 md:py-4 flex flex-col gap-1 md:gap-2" asChild>
+                <Link to="/admin/configuracoes">
+                  <Settings className="h-5 w-5 md:h-6 md:w-6 text-gray-600" />
+                  <span className="text-xs md:text-sm">Configurar</span>
+                  <span className="text-[10px] md:text-xs text-muted-foreground">Sistema</span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-auto py-3 md:py-4 flex flex-col gap-1 md:gap-2">
+                <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-red-600" />
+                <span className="text-xs md:text-sm">Atrasos</span>
+                <span className="text-[10px] md:text-xs text-muted-foreground">{stats?.overduePayments} parcelas</span>
               </Button>
             </div>
           </CardContent>
