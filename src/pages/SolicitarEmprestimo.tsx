@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatPhone, LoanSimulation } from '@/lib/loanCalculator';
 import { RequiredDocumentCapture, RequiredDocument, initialDocuments } from '@/components/RequiredDocumentCapture';
+import { PermissionsBanner } from '@/components/PermissionsBanner';
 import { LocationCapture, LocationData } from '@/components/LocationCapture';
 import { 
   Loader2, 
@@ -374,6 +375,9 @@ export default function SolicitarEmprestimo() {
     <div className="min-h-screen bg-background app-container">
       <Header />
       <div className="container px-4 py-4 md:py-8">
+        {/* Permissions Banner */}
+        <PermissionsBanner autoRequest={true} />
+
         {/* Simulation Summary */}
         <Card className="mb-6 md:mb-8 border-primary/20 bg-primary/5">
           <CardContent className="p-4 md:p-6">

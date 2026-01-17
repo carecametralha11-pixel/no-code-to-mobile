@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePermissions } from "@/hooks/usePermissions";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Simulador from "./pages/Simulador";
@@ -22,24 +23,37 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Component to handle push notifications registration
-function PushNotificationHandler() {
+// Component to handle push notifications and permissions
+function AppInitializer() {
   const { user } = useAuth();
   const { registerPushNotifications, isNative } = usePushNotifications();
-  const hasRegistered = useRef(false);
+  const { requestAllPermissions } = usePermissions();
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    // Register push notifications when user logs in on native platform
-    // Only register once per session
-    if (user && isNative && !hasRegistered.current) {
-      hasRegistered.current = true;
-      // Delay registration to ensure app is fully initialized
-      const timer = setTimeout(() => {
-        registerPushNotifications(user.id);
-      }, 1500);
+    // Initialize app on native platform when user logs in
+    if (user && isNative && !hasInitialized.current) {
+      hasInitialized.current = true;
+      
+      // Delay initialization to ensure app is fully loaded
+      const timer = setTimeout(async () => {
+        console.log('Initializing native app for user:', user.id);
+        
+        // Request all permissions
+        await requestAllPermissions();
+        
+        // Register push notifications
+        await registerPushNotifications(user.id);
+      }, 1000);
+      
       return () => clearTimeout(timer);
     }
-  }, [user, isNative]);
+    
+    // Reset if user logs out
+    if (!user) {
+      hasInitialized.current = false;
+    }
+  }, [user, isNative, registerPushNotifications, requestAllPermissions]);
 
   return null;
 }
@@ -48,7 +62,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
-        <PushNotificationHandler />
+        <AppInitializer />
         <Toaster />
         <Sonner />
         <BrowserRouter>
