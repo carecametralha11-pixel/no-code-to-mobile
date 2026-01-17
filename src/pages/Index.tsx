@@ -3,6 +3,7 @@ import { Header } from '@/components/Header';
 import { LoanSimulator } from '@/components/LoanSimulator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { NativeFeaturesBanner } from '@/components/NativeFeaturesBanner';
 import { 
   Shield, 
   Clock, 
@@ -92,6 +93,11 @@ export default function Index() {
     <div className="min-h-screen bg-background">
       <Header />
       
+      {/* Native Features Banner */}
+      <div className="container pt-6">
+        <NativeFeaturesBanner />
+      </div>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />

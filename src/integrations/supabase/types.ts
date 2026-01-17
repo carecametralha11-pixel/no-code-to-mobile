@@ -188,6 +188,7 @@ export type Database = {
           interest_rate: number
           monthly_payment: number
           purpose: string | null
+          request_location: Json | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["loan_status"]
@@ -205,6 +206,7 @@ export type Database = {
           interest_rate: number
           monthly_payment: number
           purpose?: string | null
+          request_location?: Json | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["loan_status"]
@@ -222,6 +224,7 @@ export type Database = {
           interest_rate?: number
           monthly_payment?: number
           purpose?: string | null
+          request_location?: Json | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["loan_status"]
@@ -291,6 +294,33 @@ export type Database = {
           updated_at?: string
           user_id?: string
           zip_code?: string | null
+        }
+        Relationships: []
+      }
+      push_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

@@ -1,10 +1,12 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Simulador from "./pages/Simulador";
@@ -17,10 +19,26 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Component to handle push notifications registration
+function PushNotificationHandler() {
+  const { user } = useAuth();
+  const { registerPushNotifications, isNative } = usePushNotifications();
+
+  useEffect(() => {
+    // Register push notifications when user logs in on native platform
+    if (user && isNative) {
+      registerPushNotifications(user.id);
+    }
+  }, [user, isNative, registerPushNotifications]);
+
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
+        <PushNotificationHandler />
         <Toaster />
         <Sonner />
         <BrowserRouter>
