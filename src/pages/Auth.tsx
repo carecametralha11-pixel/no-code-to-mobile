@@ -180,9 +180,9 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background app-container">
       <Header />
-      <div className="container flex items-center justify-center py-12">
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
         <Card className="w-full max-w-md shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">

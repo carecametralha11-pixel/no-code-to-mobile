@@ -90,30 +90,30 @@ const testimonials = [
 
 export default function Index() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background app-container">
       <Header />
       
       {/* Native Features Banner */}
-      <div className="container pt-6">
+      <div className="container px-4 pt-4">
         <NativeFeaturesBanner />
       </div>
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
-        <div className="container relative py-20 lg:py-32">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="container relative px-4 py-12 lg:py-32">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="space-y-8">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
                 <Star className="h-4 w-4 fill-primary" />
                 Mais de 10.000 clientes satisfeitos
               </div>
-              <h1 className="text-4xl lg:text-6xl font-bold tracking-tight">
+              <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold tracking-tight">
                 Crédito rápido e{' '}
                 <span className="text-primary">confiável</span>{' '}
                 para realizar seus sonhos
               </h1>
-              <p className="text-xl text-muted-foreground max-w-lg">
+              <p className="text-lg md:text-xl text-muted-foreground max-w-lg">
                 Empréstimo pessoal com as melhores taxas do mercado. 
                 Aprovação em até 24 horas e dinheiro na conta.
               </p>
@@ -130,18 +130,18 @@ export default function Index() {
                   </Link>
                 </Button>
               </div>
-              <div className="flex items-center gap-8 pt-4">
+              <div className="flex flex-wrap items-center gap-4 md:gap-8 pt-4">
                 <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  <span className="text-sm text-muted-foreground">+10.000 clientes</span>
+                  <Users className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                  <span className="text-xs md:text-sm text-muted-foreground">+10.000 clientes</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  <span className="text-sm text-muted-foreground">100% Seguro</span>
+                  <Shield className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                  <span className="text-xs md:text-sm text-muted-foreground">100% Seguro</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Smartphone className="h-5 w-5 text-primary" />
-                  <span className="text-sm text-muted-foreground">100% Online</span>
+                  <Smartphone className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                  <span className="text-xs md:text-sm text-muted-foreground">100% Online</span>
                 </div>
               </div>
             </div>
@@ -153,8 +153,8 @@ export default function Index() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container">
+      <section className="py-12 md:py-20 bg-muted/30">
+        <div className="container px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
               Por que escolher a EmprestAí?
@@ -180,8 +180,8 @@ export default function Index() {
       </section>
 
       {/* How it Works Section */}
-      <section className="py-20">
-        <div className="container">
+      <section className="py-12 md:py-20">
+        <div className="container px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
               Como funciona?
@@ -211,8 +211,8 @@ export default function Index() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-muted/30">
-        <div className="container">
+      <section className="py-12 md:py-20 bg-muted/30">
+        <div className="container px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
               O que nossos clientes dizem
@@ -250,10 +250,10 @@ export default function Index() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
-        <div className="container">
+      <section className="py-12 md:py-20">
+        <div className="container px-4">
           <Card className="border-0 shadow-2xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground overflow-hidden">
-            <CardContent className="p-12 lg:p-16 text-center relative">
+            <CardContent className="p-6 md:p-12 lg:p-16 text-center relative">
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtOS45NDEgMC0xOCA4LjA1OS0xOCAxOHM4LjA1OSAxOCAxOCAxOCAxOC04LjA1OSAxOC0xOC04LjA1OS0xOC0xOC0xOHptMCAzMmMtNy43MzIgMC0xNC02LjI2OC0xNC0xNHM2LjI2OC0xNCAxNC0xNCAxNCA2LjI2OCAxNCAxNC02LjI2OCAxNC0xNCAxNHoiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iLjA1Ii8+PC9nPjwvc3ZnPg==')] opacity-20" />
               <div className="relative">
                 <h2 className="text-3xl lg:text-5xl font-bold mb-6">
@@ -282,8 +282,8 @@ export default function Index() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-12">
-        <div className="container">
+      <footer className="border-t py-8 md:py-12 safe-bottom">
+        <div className="container px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
