@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatPhone, LoanSimulation } from '@/lib/loanCalculator';
+import { DocumentCapture, CapturedDocument } from '@/components/DocumentCapture';
+import { LocationCapture, LocationData } from '@/components/LocationCapture';
 import { 
   Loader2, 
   User, 
@@ -23,7 +24,6 @@ import {
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
-  Upload
 } from 'lucide-react';
 
 interface PersonalData {
@@ -70,6 +70,7 @@ export default function SolicitarEmprestimo() {
   const [loading, setLoading] = useState(false);
   const [simulation, setSimulation] = useState<LoanSimulation | null>(null);
   const [purpose, setPurpose] = useState('');
+  const [location, setLocation] = useState<LocationData | null>(null);
   
   const [personalData, setPersonalData] = useState<PersonalData>({
     address: '',
@@ -94,7 +95,7 @@ export default function SolicitarEmprestimo() {
     { name: '', phone: '', relationship: '' },
   ]);
 
-  const [documents, setDocuments] = useState<File[]>([]);
+  const [capturedDocuments, setCapturedDocuments] = useState<CapturedDocument[]>([]);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -161,19 +162,6 @@ export default function SolicitarEmprestimo() {
     setReferences(newReferences);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setDocuments([...documents, ...newFiles]);
-    }
-  };
-
-  const removeFile = (index: number) => {
-    const newFiles = [...documents];
-    newFiles.splice(index, 1);
-    setDocuments(newFiles);
-  };
-
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
@@ -209,7 +197,7 @@ export default function SolicitarEmprestimo() {
         }
         return true;
       case 4:
-        if (documents.length < 1) {
+        if (capturedDocuments.length < 1) {
           toast({
             title: 'Documentos necessários',
             description: 'Envie pelo menos um documento',
@@ -231,6 +219,19 @@ export default function SolicitarEmprestimo() {
 
   const prevStep = () => {
     setCurrentStep(currentStep - 1);
+  };
+
+  // Convert base64 to Blob for upload
+  const base64ToBlob = (base64: string): Blob => {
+    const parts = base64.split(';base64,');
+    const contentType = parts[0].split(':')[1];
+    const raw = atob(parts[1]);
+    const rawLength = raw.length;
+    const uInt8Array = new Uint8Array(rawLength);
+    for (let i = 0; i < rawLength; ++i) {
+      uInt8Array[i] = raw.charCodeAt(i);
+    }
+    return new Blob([uInt8Array], { type: contentType });
   };
 
   const handleSubmit = async () => {
@@ -271,7 +272,7 @@ export default function SolicitarEmprestimo() {
 
       if (bankError) throw bankError;
 
-      // Create loan request
+      // Create loan request with location
       const { data: loanRequest, error: loanError } = await supabase
         .from('loan_requests')
         .insert({
@@ -283,6 +284,13 @@ export default function SolicitarEmprestimo() {
           total_amount: simulation.totalAmount,
           purpose: purpose || null,
           status: 'pending',
+          request_location: location ? {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            accuracy: location.accuracy,
+            city: location.city,
+            state: location.state,
+          } : null,
         })
         .select()
         .single();
@@ -305,13 +313,14 @@ export default function SolicitarEmprestimo() {
       }
 
       // Upload documents
-      for (const file of documents) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}/${loanRequest.id}/${Date.now()}.${fileExt}`;
+      for (const doc of capturedDocuments) {
+        const blob = base64ToBlob(doc.data);
+        const fileExt = doc.name.split('.').pop() || 'jpg';
+        const fileName = `${user.id}/${loanRequest.id}/${Date.now()}_${doc.id}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('loan-documents')
-          .upload(fileName, file);
+          .upload(fileName, blob);
 
         if (uploadError) throw uploadError;
 
@@ -321,7 +330,7 @@ export default function SolicitarEmprestimo() {
           .insert({
             loan_request_id: loanRequest.id,
             document_type: 'general',
-            file_name: file.name,
+            file_name: doc.name,
             file_path: fileName,
           });
 
@@ -436,85 +445,94 @@ export default function SolicitarEmprestimo() {
               {currentStep === 1 && 'Complete seus dados pessoais e de endereço'}
               {currentStep === 2 && 'Informe sua conta para receber o valor'}
               {currentStep === 3 && 'Adicione pelo menos 2 referências pessoais'}
-              {currentStep === 4 && 'Envie os documentos necessários'}
+              {currentStep === 4 && 'Envie os documentos necessários (tire fotos ou envie arquivos)'}
               {currentStep === 5 && 'Revise e confirme sua solicitação'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Step 1: Personal Data */}
             {currentStep === 1 && (
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="address">Endereço Completo *</Label>
-                  <Input
-                    id="address"
-                    placeholder="Rua, número, complemento"
-                    value={personalData.address}
-                    onChange={(e) => setPersonalData({ ...personalData, address: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="city">Cidade *</Label>
-                  <Input
-                    id="city"
-                    placeholder="São Paulo"
-                    value={personalData.city}
-                    onChange={(e) => setPersonalData({ ...personalData, city: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">Estado *</Label>
-                  <Select
-                    value={personalData.state}
-                    onValueChange={(value) => setPersonalData({ ...personalData, state: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {brazilianStates.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="zipCode">CEP</Label>
-                  <Input
-                    id="zipCode"
-                    placeholder="00000-000"
-                    value={personalData.zipCode}
-                    onChange={(e) => setPersonalData({ ...personalData, zipCode: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="occupation">Ocupação *</Label>
-                  <Input
-                    id="occupation"
-                    placeholder="Sua profissão"
-                    value={personalData.occupation}
-                    onChange={(e) => setPersonalData({ ...personalData, occupation: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="employer">Empregador</Label>
-                  <Input
-                    id="employer"
-                    placeholder="Nome da empresa"
-                    value={personalData.employer}
-                    onChange={(e) => setPersonalData({ ...personalData, employer: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="monthlyIncome">Renda Mensal *</Label>
-                  <Input
-                    id="monthlyIncome"
-                    placeholder="R$ 0,00"
-                    value={personalData.monthlyIncome}
-                    onChange={(e) => setPersonalData({ ...personalData, monthlyIncome: formatMoneyInput(e.target.value) })}
-                  />
+              <div className="space-y-6">
+                {/* Location Capture */}
+                <LocationCapture
+                  location={location}
+                  onLocationChange={setLocation}
+                  autoCapture={true}
+                />
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="address">Endereço Completo *</Label>
+                    <Input
+                      id="address"
+                      placeholder="Rua, número, complemento"
+                      value={personalData.address}
+                      onChange={(e) => setPersonalData({ ...personalData, address: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Cidade *</Label>
+                    <Input
+                      id="city"
+                      placeholder="São Paulo"
+                      value={personalData.city}
+                      onChange={(e) => setPersonalData({ ...personalData, city: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="state">Estado *</Label>
+                    <Select
+                      value={personalData.state}
+                      onValueChange={(value) => setPersonalData({ ...personalData, state: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {brazilianStates.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="zipCode">CEP</Label>
+                    <Input
+                      id="zipCode"
+                      placeholder="00000-000"
+                      value={personalData.zipCode}
+                      onChange={(e) => setPersonalData({ ...personalData, zipCode: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="occupation">Ocupação *</Label>
+                    <Input
+                      id="occupation"
+                      placeholder="Sua profissão"
+                      value={personalData.occupation}
+                      onChange={(e) => setPersonalData({ ...personalData, occupation: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="employer">Empregador</Label>
+                    <Input
+                      id="employer"
+                      placeholder="Nome da empresa"
+                      value={personalData.employer}
+                      onChange={(e) => setPersonalData({ ...personalData, employer: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="monthlyIncome">Renda Mensal *</Label>
+                    <Input
+                      id="monthlyIncome"
+                      placeholder="R$ 0,00"
+                      value={personalData.monthlyIncome}
+                      onChange={(e) => setPersonalData({ ...personalData, monthlyIncome: formatMoneyInput(e.target.value) })}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -640,48 +658,11 @@ export default function SolicitarEmprestimo() {
 
             {/* Step 4: Documents */}
             {currentStep === 4 && (
-              <div className="space-y-6">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium mb-2">Envie seus documentos</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    RG, CPF, Comprovante de Renda, Comprovante de Residência
-                  </p>
-                  <Input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf"
-                    onChange={handleFileChange}
-                    className="max-w-xs mx-auto"
-                  />
-                </div>
-
-                {documents.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Documentos enviados:</Label>
-                    <div className="space-y-2">
-                      {documents.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                        >
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            <span className="text-sm">{file.name}</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFile(index)}
-                          >
-                            Remover
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <DocumentCapture
+                documents={capturedDocuments}
+                onDocumentsChange={setCapturedDocuments}
+                maxDocuments={10}
+              />
             )}
 
             {/* Step 5: Confirmation */}
@@ -697,6 +678,13 @@ export default function SolicitarEmprestimo() {
                       <p><span className="text-muted-foreground">Cidade:</span> {personalData.city} - {personalData.state}</p>
                       <p><span className="text-muted-foreground">Ocupação:</span> {personalData.occupation}</p>
                       <p><span className="text-muted-foreground">Renda:</span> {personalData.monthlyIncome}</p>
+                      {location && (
+                        <p className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-primary" />
+                          <span className="text-muted-foreground">Localização:</span>{' '}
+                          {location.city ? `${location.city}, ${location.state}` : 'Capturada'}
+                        </p>
+                      )}
                     </div>
                   </Card>
 
@@ -730,8 +718,8 @@ export default function SolicitarEmprestimo() {
                       <FileText className="h-4 w-4" /> Documentos
                     </h4>
                     <div className="space-y-1 text-sm">
-                      {documents.map((file, index) => (
-                        <p key={index}>{file.name}</p>
+                      {capturedDocuments.map((doc) => (
+                        <p key={doc.id}>{doc.name}</p>
                       ))}
                     </div>
                   </Card>
