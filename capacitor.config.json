@@ -1,0 +1,22 @@
+{
+  "appId": "app.lovable.5c021eb03fa249029882f019077c3aa5",
+  "appName": "EmprestAí",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://5c021eb0-3fa2-4902-9882-f019077c3aa5.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#3B82F6",
+      "showSpinner": true,
+      "spinnerColor": "#ffffff"
+    },
+    "StatusBar": {
+      "style": "Light",
+      "backgroundColor": "#3B82F6"
+    }
+  }
+}
