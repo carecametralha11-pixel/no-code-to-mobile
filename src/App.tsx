@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,13 +23,20 @@ const queryClient = new QueryClient();
 function PushNotificationHandler() {
   const { user } = useAuth();
   const { registerPushNotifications, isNative } = usePushNotifications();
+  const hasRegistered = useRef(false);
 
   useEffect(() => {
     // Register push notifications when user logs in on native platform
-    if (user && isNative) {
-      registerPushNotifications(user.id);
+    // Only register once per session
+    if (user && isNative && !hasRegistered.current) {
+      hasRegistered.current = true;
+      // Delay registration to ensure app is fully initialized
+      const timer = setTimeout(() => {
+        registerPushNotifications(user.id);
+      }, 1500);
+      return () => clearTimeout(timer);
     }
-  }, [user, isNative, registerPushNotifications]);
+  }, [user, isNative]);
 
   return null;
 }
