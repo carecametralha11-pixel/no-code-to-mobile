@@ -1,6 +1,5 @@
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
-import { PushNotifications } from '@capacitor/push-notifications';
 
 // Camera utilities
 export async function takePicture() {
@@ -51,9 +50,16 @@ export async function getCurrentPosition() {
   }
 }
 
-// Push Notifications utilities
+// Push Notifications utilities - using dynamic import to avoid crashes
 export async function registerPushNotifications() {
+  if (!isNativePlatform()) {
+    console.log('Push notifications only available on native platforms');
+    return false;
+  }
+
   try {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    
     // Request permission
     const permission = await PushNotifications.requestPermissions();
     
@@ -62,20 +68,19 @@ export async function registerPushNotifications() {
       await PushNotifications.register();
       
       // Setup listeners
-      PushNotifications.addListener('registration', (token) => {
+      await PushNotifications.addListener('registration', (token) => {
         console.log('Push registration token:', token.value);
-        // Here you would typically send this token to your server
       });
 
-      PushNotifications.addListener('registrationError', (error) => {
+      await PushNotifications.addListener('registrationError', (error) => {
         console.error('Push registration error:', error);
       });
 
-      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      await PushNotifications.addListener('pushNotificationReceived', (notification) => {
         console.log('Push notification received:', notification);
       });
 
-      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
         console.log('Push notification action performed:', action);
       });
 
@@ -85,13 +90,18 @@ export async function registerPushNotifications() {
     return false;
   } catch (error) {
     console.error('Error registering push notifications:', error);
-    throw error;
+    return false;
   }
 }
 
 // Check if running on native platform
 export function isNativePlatform(): boolean {
-  return typeof window !== 'undefined' && 
-    (window as any).Capacitor !== undefined && 
-    (window as any).Capacitor.isNativePlatform();
+  try {
+    return typeof window !== 'undefined' && 
+      (window as any).Capacitor !== undefined && 
+      typeof (window as any).Capacitor.isNativePlatform === 'function' &&
+      (window as any).Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
 }
