@@ -3,12 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useCamera } from '@/hooks/useCamera';
-import { Camera, Upload, Loader2, X, CheckCircle2, AlertCircle, Image } from 'lucide-react';
+import { Camera, Upload, Loader2, X, CheckCircle2, AlertCircle, Image, CreditCard } from 'lucide-react';
 import { isNativePlatform } from '@/lib/nativeFeatures';
 
 interface RequiredDocument {
   id: string;
-  type: 'rg_frente' | 'rg_verso' | 'selfie_documento';
+  type: 'rg_frente' | 'rg_verso' | 'selfie_documento' | 'cartao_frente' | 'cartao_verso';
   label: string;
   description: string;
   data?: string; // base64 data URL
@@ -40,6 +40,20 @@ const initialDocuments: RequiredDocument[] = [
     type: 'selfie_documento',
     label: 'Selfie com Documento',
     description: 'Foto do seu rosto segurando o documento',
+    captured: false,
+  },
+  {
+    id: 'cartao_frente',
+    type: 'cartao_frente',
+    label: 'Cartão Bancário - Frente',
+    description: 'Foto da frente do seu cartão (crédito ou débito)',
+    captured: false,
+  },
+  {
+    id: 'cartao_verso',
+    type: 'cartao_verso',
+    label: 'Cartão Bancário - Verso',
+    description: 'Foto do verso do cartão (tape o CVV com o dedo)',
     captured: false,
   },
 ];
@@ -155,10 +169,14 @@ export function RequiredDocumentCapture({
                   <div className={`w-20 h-20 rounded-lg flex items-center justify-center ${
                     doc.type === 'selfie_documento' 
                       ? 'bg-purple-100 dark:bg-purple-900/30' 
+                      : doc.type === 'cartao_frente' || doc.type === 'cartao_verso'
+                      ? 'bg-green-100 dark:bg-green-900/30'
                       : 'bg-blue-100 dark:bg-blue-900/30'
                   }`}>
                     {doc.type === 'selfie_documento' ? (
                       <Camera className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                    ) : doc.type === 'cartao_frente' || doc.type === 'cartao_verso' ? (
+                      <CreditCard className="h-8 w-8 text-green-600 dark:text-green-400" />
                     ) : (
                       <Image className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                     )}
@@ -264,7 +282,22 @@ export function RequiredDocumentCapture({
               <li>• Evite reflexos e sombras</li>
               <li>• O documento deve estar completamente visível</li>
               <li>• Na selfie, mantenha o documento ao lado do rosto</li>
+              <li>• <strong>No cartão:</strong> tape o código CVV com o dedo na foto do verso</li>
             </ul>
+          </div>
+        </div>
+      </Card>
+
+      {/* Card Verification Info */}
+      <Card className="p-4 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+        <div className="flex gap-3">
+          <CreditCard className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-green-800 dark:text-green-200 mb-1">Por que pedimos foto do cartão?</p>
+            <p className="text-xs text-green-700 dark:text-green-300">
+              A foto do cartão bancário (crédito ou débito) comprova que você é o titular da conta informada. 
+              Isso aumenta a segurança e agiliza a aprovação do seu empréstimo.
+            </p>
           </div>
         </div>
       </Card>
